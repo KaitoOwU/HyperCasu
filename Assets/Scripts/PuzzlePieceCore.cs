@@ -11,8 +11,13 @@ using Random = UnityEngine.Random;
 public class PuzzlePieceCore : MonoBehaviour
 {
     [SerializeField] private bool[][] _validTemplate;
+    private bool _isWin = false;
+
+    public bool[][] ValidTemplate => _validTemplate;
+
+    public bool IsWin => _isWin;
     
-    public PuzzlePieceCore GeneratePuzzlePiece(int size, float chance = 0.1f)
+    public IEnumerator GeneratePuzzlePiece(int size, float chance = 0.1f)
     {
         if(size < 0)
             throw new ArgumentException("Size must be greater than 0");
@@ -42,16 +47,15 @@ public class PuzzlePieceCore : MonoBehaviour
                     
                     if (template[i][j][k])
                     {
-                        var obj = Instantiate(Resources.Load<GameObject>("Prefab/Piece"), new Vector3(i - half, j - half, k - half), Quaternion.identity);
-                        obj.transform.SetParent(transform);
+                        var obj = Instantiate(Resources.Load<GameObject>("Prefab/Piece"), transform);
+                        obj.transform.localPosition = new Vector3(i - half, j - half, k - half);
                     }
                 }
             }
         }
 
         transform.localScale = Vector3.one / half;
-        
-        transform.rotation = Quaternion.Euler(new Vector3(Random.Range(0, 3) * 90f, Random.Range(0, 3) * 90f, Random.Range(0, 3) * 90f));
+        yield return new WaitForSeconds(0.5f);
 
         bool[][] template2D = new bool[size][];
         Vector3 startPos = transform.position - new Vector3(0, 0, 10);
@@ -61,17 +65,15 @@ public class PuzzlePieceCore : MonoBehaviour
             template2D[i] = new bool[size];
             for (int j = 0; j < size; j++)
             {
-                Debug.DrawRay(startPos + new Vector3(-1 + j, 1 - i, 0), Vector3.forward * 20, Color.magenta, 1f);
+                Debug.DrawRay(startPos + new Vector3(-1 + j, 1 - i, 0), Vector3.forward * 20, Color.green, 1f);
                 template2D[i][j] = Physics.Raycast(startPos + new Vector3(-1 + j, 1 - i, 0), Vector3.forward * 40, 40, LayerMask.GetMask("Piece"));
                 Debug.Log($"{i}, {j} : {template2D[i][j]}");
             }
         }
-
+        
         transform.rotation = Quaternion.Euler(Random.Range(0f, 360f), Random.Range(0f, 360f), Random.Range(0f, 360f));
-        KeyholeUI.Instance.SetupTemplate(template2D);
+        FindObjectsByType<KeyholeUI>(FindObjectsSortMode.None).ToList().ForEach((keyhole) => keyhole.SetupTemplate(template2D));
         _validTemplate = template2D;
-
-        return this;
     }
 
     public bool TestIfValid()
@@ -100,6 +102,10 @@ public class PuzzlePieceCore : MonoBehaviour
             }
         }
 
+        if (_isWin)
+            return false;
+        
+        _isWin = true;
         return true;
     }
 }
